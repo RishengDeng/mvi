@@ -8,9 +8,10 @@ import nrrd
 import csv 
 import logging 
 import glob 
+import imageio
 import nibabel as nib 
 from PIL import Image 
-from skimage import measure
+from skimage import measure, io 
 
 
 # set logging information
@@ -39,9 +40,15 @@ logger.info('the csv file has been loaded')
 
 
 # build a directory to save images
-image_dir = os.path.join(os.path.dirname(path), 'art')
+image_dir = os.path.join(os.path.dirname(path), 'art_images')
 if not os.path.exists(image_dir):
     os.mkdir(image_dir)
+
+
+# build a directory to save npy
+npy_dir = os.path.join(os.path.dirname(path), 'art_npy')
+if not os.path.exists(npy_dir):
+    os.mkdir(npy_dir)
 
 
 # get the case path 
@@ -50,11 +57,72 @@ for case_path in case_list:
     logger.info(case_path)
 
 
-    # get LAVA phase
-    LAVA_list = glob.glob(case_path + '/*LAVA*')
-    LAVA_list.sort()
+    # # get LAVA phase
+    # LAVA_list = glob.glob(case_path + '/*LAVA*')
+    # LAVA_list.sort()
 
-    # get the art phase
-    art_image_path = LAVA_list[3]
-    art_mask_path = LAVA_list[4]
-    art_liver_path = LAVA_list[5]
+    # get the art nrrd file
+    idx = -1
+    item_list = os.listdir(case_path)
+    item_list.sort()
+    for item in item_list:
+        idx += 1
+        if item.split('_')[-1] == 'ART.nrrd':
+            break
+    assert idx > 0
+
+    # get the art and mask and liver path
+    art_image_path = case_path + '/' + item_list[idx - 1]
+    art_mask_path = case_path + '/' + item_list[idx]
+    art_liver_path = case_path + '/' + item_list[idx + 1]
+
+    # get art image array
+    art_image = nib.load(art_image_path)
+    art_array = art_image.get_data()    #channel last
+
+    # get art mask array
+    art_mask_array, _ = nrrd.read(art_mask_path)
+    art_mask_slice = list(set(np.nonzero(art_mask_array)[-1]))
+
+    # use the maximum connectivity method to find the largest slice
+    largest_area = 0
+    largest_slice = 0
+    for idx in art_mask_slice:
+        img_labeled = measure.label(art_mask_array[:, :, idx], connectivity=2)
+        prop = measure.regionprops(img_labeled)
+        area = prop[0].area
+        if area > largest_area:
+            largest_area = area 
+            largest_slice = idx 
+    
+    # multiply the mask with art array
+    for i in [largest_slice - 1, largest_slice, largest_slice + 1]:
+        roi_array = np.multiply(art_mask_array[:, :, i], art_array[:, :, i])
+
+        # get the mask coordinate
+        mask = (roi_array > 0)
+
+        # get the lower and upper bound
+        lower = np.percentile(roi_array[mask], 0.2)
+        upper = np.percentile(roi_array[mask], 99.8)
+
+        # cut the array 
+        roi_array[mask & (roi_array < lower)] = lower
+        roi_array[mask & (roi_array > upper)] = upper 
+
+        # get mean and std of the image
+        mean = roi_array[mask].mean()
+        std = roi_array[mask].std()
+
+        # do normalize
+        roi_array = roi_array.astype(dtype=np.float32)
+        roi_array[mask] = (roi_array[mask] - mean) / std 
+
+
+        # convert the new array to image and save it to file
+        id_num = case_path.split('/')[-2]
+        image_name = id_num + '_' + str(i) + '_art_' + mvi[id_num] + '.jpg'
+        npy_name = id_num + '_' + str(i) + '_art_' + mvi[id_num] + '.npy'
+        imageio.imwrite(os.path.join(image_dir, image_name), roi_array)
+        # io.imsave(os.path.join(image_dir, image_name), roi_array)
+        np.save(os.path.join(npy_dir, npy_name), roi_array)
