@@ -1,5 +1,5 @@
 import numpy as np 
-from skimage.transform import rescale, rotate 
+from skimage.transform import rescale, rotate, resize 
 from torchvision.transforms import Compose
 
 
@@ -63,3 +63,31 @@ class HorizontalFlip(object):
         
         image = np.fliplr(image).copy()
         return image
+
+
+def pad_data(data):
+    a = data.shape[0]
+    b = data.shape[1]
+    if a == b:
+        return data
+    diff = (max(a, b) - min(a, b)) / 2.0
+    if a > b:
+        padding = ((0, 0), (int(np.floor(diff)), int(np.ceil(diff))))
+    else:
+        padding = ((int(np.floor(diff)), int(np.ceil(diff))), (0, 0))
+    data = np.pad(data, padding, mode='constant', constant_values=0)
+    return data
+
+
+def resize_data(data, size):
+    data_shape = data.shape 
+    output_shape = (size, size, data_shape[2])
+    data = resize(
+        data, 
+        output_shape=output_shape, 
+        order=2, 
+        mode='constant',
+        cval=0,
+        anti_aliasing=False,
+    )
+    return data 
