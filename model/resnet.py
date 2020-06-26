@@ -2,6 +2,8 @@ import torch
 import torchvision.models as models 
 import torch.nn as nn 
 
+from .drn_origin import drn_d_54
+
 
 class Resnet(nn.Module):
     def __init__(self, num_class=2):
@@ -19,4 +21,15 @@ class Resnet(nn.Module):
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
+        return x 
+
+
+
+class DilatedResnet(nn.Module):
+    def __init__(self):
+        super(DilatedResnet, self).__init__()
+        self.drn = drn_d_54(pretrained=True, num_classes=2)
+
+    def forward(self, x):
+        x = self.drn(x)
         return x 
