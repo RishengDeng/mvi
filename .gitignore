@@ -116,6 +116,6 @@ venv.bak/
 
 # Custom
 *.pth*
-.log/
+.logs/
 .checkpoint/
 .tensorboardimg/
