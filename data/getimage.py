@@ -23,7 +23,8 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-path = '/home/drs/Desktop/mvi_data/MVI'
+# path = '/home/drs/Desktop/mvi_data/MVI'
+path = '/media/drs/extra/Datasets/mvi_data/MVI'
 
 
 # read mvi csv file
@@ -40,19 +41,20 @@ logger.info('the csv file has been loaded')
 
 
 # build a directory to save images
-image_dir = os.path.join(os.path.dirname(path), 'art_images')
+image_dir = os.path.join(os.path.dirname(path), 'art_dilated_images')
 if not os.path.exists(image_dir):
     os.mkdir(image_dir)
 
 
 # build a directory to save npy
-npy_dir = os.path.join(os.path.dirname(path), 'art_npy')
+npy_dir = os.path.join(os.path.dirname(path), 'art_dilated_npy')
 if not os.path.exists(npy_dir):
     os.mkdir(npy_dir)
 
 
 # get the case path 
-case_list = glob.glob('/home/drs/Desktop/mvi_data/MVI/*/*')
+case_list = glob.glob(path + '/*/*')
+logger.info(case_list)
 for case_path in case_list:
     logger.info(case_path)
 
@@ -94,17 +96,25 @@ for case_path in case_list:
         if area > largest_area:
             largest_area = area 
             largest_slice = idx 
+
+    # define the kernel to expand the mask
+    kernel_size = 20
+    kernel = np.ones((kernel_size, kernel_size))
     
-    # multiply the mask with art array
     for i in [largest_slice - 1, largest_slice, largest_slice + 1]:
-        roi_array = np.multiply(art_mask_array[:, :, i], art_array[:, :, i])
+        # use cv2.dilate to expand the mask by 10 pixel
+        new_mask_array = np.zeros((512, 512))
+        new_mask_array = cv2.dilate(art_mask_array[:, :, i], kernel, iterations=1)
+
+        # multiply the mask with art array
+        roi_array = np.multiply(new_mask_array, art_array[:, :, i])
 
         # get the mask coordinate
         mask = (roi_array > 0)
 
         # get the lower and upper bound
-        lower = np.percentile(roi_array[mask], 0.2)
-        upper = np.percentile(roi_array[mask], 99.8)
+        lower = np.percentile(roi_array[mask], 0.5)
+        upper = np.percentile(roi_array[mask], 99.5)
 
         # cut the array 
         roi_array[mask & (roi_array < lower)] = lower
@@ -123,6 +133,6 @@ for case_path in case_list:
         id_num = case_path.split('/')[-2]
         image_name = id_num + '_' + str(i) + '_art_' + mvi[id_num] + '.jpg'
         npy_name = id_num + '_' + str(i) + '_art_' + mvi[id_num] + '.npy'
-        imageio.imwrite(os.path.join(image_dir, image_name), roi_array)
-        # io.imsave(os.path.join(image_dir, image_name), roi_array)
+        # imageio.imwrite(os.path.join(image_dir, image_name), roi_array)
+        io.imsave(os.path.join(image_dir, image_name), roi_array)
         np.save(os.path.join(npy_dir, npy_name), roi_array)
