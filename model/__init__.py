@@ -1,1 +1,1 @@
-from .resnet import Resnet, DilatedResnet
+from .resnet import Resnet18, Resnet50, DilatedResnet, Attention, DenseNet, AlexNet, LeNet

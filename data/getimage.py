@@ -41,13 +41,13 @@ logger.info('the csv file has been loaded')
 
 
 # build a directory to save images
-image_dir = os.path.join(os.path.dirname(path), 'art_dilated_images')
+image_dir = os.path.join(os.path.dirname(path), 'pv_images_30')
 if not os.path.exists(image_dir):
     os.mkdir(image_dir)
 
 
 # build a directory to save npy
-npy_dir = os.path.join(os.path.dirname(path), 'art_dilated_npy')
+npy_dir = os.path.join(os.path.dirname(path), 'pv_npy_30')
 if not os.path.exists(npy_dir):
     os.mkdir(npy_dir)
 
@@ -69,7 +69,7 @@ for case_path in case_list:
     item_list.sort()
     for item in item_list:
         idx += 1
-        if item.split('_')[-1] == 'ART.nrrd':
+        if item.split('_')[-1] == 'PV.nrrd':
             break
     assert idx > 0
 
@@ -98,16 +98,23 @@ for case_path in case_list:
             largest_slice = idx 
 
     # define the kernel to expand the mask
-    kernel_size = 20
+    kernel_size = 30
     kernel = np.ones((kernel_size, kernel_size))
     
-    for i in [largest_slice - 1, largest_slice, largest_slice + 1]:
+    for i in [largest_slice - 2, largest_slice - 1, largest_slice, largest_slice + 1, largest_slice + 2]:
+        # omit the mask with no data
+        if np.sum(art_mask_array[:, :, i]) == 0:
+            continue
         # use cv2.dilate to expand the mask by 10 pixel
         new_mask_array = np.zeros((512, 512))
         new_mask_array = cv2.dilate(art_mask_array[:, :, i], kernel, iterations=1)
 
+        # get the dilated ring of the tumor
+        ring_array = art_mask_array[:, :, i] - new_mask_array
+
         # multiply the mask with art array
         roi_array = np.multiply(new_mask_array, art_array[:, :, i])
+        # roi_array = np.multiply(art_mask_array[:, :, i], art_array[:, :, i])
 
         # get the mask coordinate
         mask = (roi_array > 0)
@@ -131,8 +138,8 @@ for case_path in case_list:
 
         # convert the new array to image and save it to file
         id_num = case_path.split('/')[-2]
-        image_name = id_num + '_' + str(i) + '_art_' + mvi[id_num] + '.jpg'
-        npy_name = id_num + '_' + str(i) + '_art_' + mvi[id_num] + '.npy'
-        # imageio.imwrite(os.path.join(image_dir, image_name), roi_array)
-        io.imsave(os.path.join(image_dir, image_name), roi_array)
+        image_name = id_num + '_' + str(i) + '_pv_' + mvi[id_num] + '.jpg'
+        npy_name = id_num + '_' + str(i) + '_pv_' + mvi[id_num] + '.npy'
+        imageio.imwrite(os.path.join(image_dir, image_name), roi_array)
+        # io.imsave(os.path.join(image_dir, image_name), roi_array)
         np.save(os.path.join(npy_dir, npy_name), roi_array)

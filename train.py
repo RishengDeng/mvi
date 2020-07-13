@@ -16,10 +16,10 @@ import torch.nn.functional as F
 import torchvision.datasets as datasets 
 import torchvision.models as models 
 from torch.utils.data import Dataset, DataLoader, Sampler
+from torch.utils.tensorboard import SummaryWriter
 
-from model import Resnet 
-from data import SinglePhase
-from data import transforms
+from model import Resnet18, Resnet50, DilatedResnet, Attention, DenseNet, AlexNet, LeNet
+from data import SinglePhase, transforms
 from utils import AverageMeter, accuracy_binary
 
 
@@ -69,13 +69,14 @@ parser.add_argument('--angle', default=15, type=int,
 
 args = parser.parse_args()
 
-date = '0619'
+date = '0713'
+best_acc = 0
 
 
 # build directories to save checkpoints and logs
 path = os.path.dirname(__file__)
-ckpts = os.path.join(path, 'ckpts')
-logs = os.path.join(path, 'logs')
+ckpts = os.path.join(path, 'ckpts', date)
+logs = os.path.join(path, 'logs', date)
 if not os.path.exists(ckpts):
     os.mkdir(ckpts)
 if not os.path.exists(logs):
@@ -85,30 +86,43 @@ if not os.path.exists(logs):
 # use logging to record
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
-handler = logging.FileHandler(os.path.join(logs, date) + '.log', mode='w')
+handler = logging.FileHandler(os.path.join(logs, 'resnet50_2240') + '.log', mode='w')
 formatter = logging.Formatter('%(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-def save_ckpt(state, is_best, name='resnet50'):
-    file_name = os.path.join(ckpts, date, name) + '.pth.tar'
+# show loss and accuracy in tensorboard
+writer = SummaryWriter('logs/runs')
+
+
+def save_ckpt(state, is_best, name='resnet50_2240'):
+    file_name = os.path.join(ckpts, name) + '.pth.tar'
     torch.save(state, file_name)
     if is_best:
         shutil.copyfile(file_name, os.path.join(os.path.dirname(file_name), name + 'best.pth.tar'))
 
 
 def main():
-    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu 
+    global best_acc
+    # os.environ['CUDA_VISIBLE_DEVICES'] = 'args.gpu' 
+    torch.cuda.set_device(args.gpu)
     print('Use GPU: {} for training'.format(args.gpu))
 
     # creat model
-    model = Resnet()
+    # model = Resnet18()
+    model = Resnet50()
+    # model = DilatedResnet()
+    # model = Attention()
+    # model = DenseNet()
+    # model = AlexNet()
+    # model = LeNet()
     model = model.cuda(args.gpu)
     logger.info(model)
 
     # define loss function (criterion) and optimizer 
-    criterion = nn.CrossEntropyLoss.cuda(args.gpu)
+    criterion = nn.CrossEntropyLoss()
+    criterion = criterion.cuda(args.gpu)
     optimizer = torch.optim.SGD(
         model.parameters(), 
         args.lr,
@@ -189,7 +203,7 @@ def main():
         train(train_loader, model, criterion, optimizer, epoch, args)
 
         # evaluate on validation set
-        acc = validate(val_loader, model, criterion, args)
+        acc = validate(val_loader, model, criterion, epoch, args)
 
         # record the best accuracy and save checkpoint
         is_best = acc > best_acc
@@ -209,7 +223,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     # switch to train mode
     model.train()
 
-    for step, (data, target) in enumerate(train_loader):
+    for step, (data, target, id_num) in enumerate(train_loader):
         
         data = data.cuda(args.gpu, non_blocking=True)
         target = target.cuda(args.gpu, non_blocking=True)
@@ -218,23 +232,27 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         loss = criterion(output, target)
 
         # measure the accuracy and record loss
-        acc, acc_0, acc_1 = accuracy_binary(output, target, logger)
+        acc, acc_0, acc_1 = accuracy_binary(output, target, logger, id_num)
         Losses.update(loss.item(), target.numel())
-        Accuracy.update(acc, target.numel())
+        Accuracy.update(acc / target.numel(), target.numel())
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
         with amp.scale_loss(loss, optimizer) as scaled_loss:
             scaled_loss.backward()
+        # loss.backward()
         optimizer.step()
 
         if step % args.print_freq == 0:
             msg = 'Epoch[{:0>3}/{:0>3}], Loss:{:.6f}, Accuracy:{:.3f}'.format(
-                epoch+1, args.epochs, Losses.val, Accuracy.avg)
+                epoch+1, args.epochs, Losses.avg, Accuracy.avg)
             logger.info(msg)
 
+    writer.add_scalar('train/loss', Losses.avg, epoch+1)
+    writer.add_scalar('train/accuracy', Accuracy.avg, epoch+1)
 
-def validate(val_loader, model, criterion, args):
+
+def validate(val_loader, model, criterion, epoch, args):
     # record the losses and accuracy
     Losses = AverageMeter('Loss', ':.4e')
     Accuracy = AverageMeter('Accuracy', ':6.3f')
@@ -242,36 +260,67 @@ def validate(val_loader, model, criterion, args):
     total_num = 0
     total_acc0 = 0
     total_acc1 = 0
+    count = 0
+    id_dict = {}
+    id_label = {}
 
     # switch to evaluate mode
     model.eval()
 
     with torch.no_grad():
-        for step, (data, target) in enumerate(val_loader):
+        for step, (data, target, id_num) in enumerate(val_loader):
             data = data.cuda(args.gpu, non_blocking=True)
             target = target.cuda(args.gpu, non_blocking=True)
 
             output = model(data)
             loss = criterion(output, target)
 
+            num = len(list(set(id_num)))
+
             # measure the accuracy and record loss
-            acc, acc_0, acc_1 = accuracy_binary(output, target, logger)
+            # acc, acc_0, acc_1 = accuracy_binary(output, target, logger, id_num, mode='val')
+            id_dict, id_label = accuracy_binary(output, target, logger, id_num, id_dict, id_label, mode='val')
             Losses.update(loss.item(), target.numel())
-            Accuracy.update(acc, target.numel())
+            # Accuracy.update(acc / num, num)
+            # Accuracy.update(acc / target.numel(), target.numel())
 
             if step % args.print_freq == 0:
-                msg = 'Loss:{:.6f}, Accuracy:{:.3f}'.format(Losses.val, Accuracy.avg)
+                msg = 'Loss:{:.6f}, Accuracy:{:.3f}'.format(Losses.avg, Accuracy.avg)
                 logger.info(msg)
 
-            total_num += target.numel()
-            total_acc0 += acc_0
-            total_acc1 += acc_1
+            # total_num += target.numel()
+            # total_num += num
+            # total_acc0 += acc_0
+            # total_acc1 += acc_1
+
+        for key in id_dict:
+            if id_dict[key] > 0:
+                a = 1
+            else:
+                a = 0
+            b = id_label[key]
+            if a == 0 and b == 0:
+                total_acc0 += 1
+                count += 1
+            elif a == 1 and b == 1:
+                total_acc1 += 1
+                count += 1
+
+        total_num = len(id_label)
+        accuracy = count / total_num 
         
+        # logger.info(
+        #     'total number: {}, total acc0: {}, total acc1: {}, Accuracy: {:.3f}'.format(
+        #     total_num, total_acc0, total_acc1, Accuracy.avg))
         logger.info(
-            'total number: %d, total acc0: %d, total acc1: %d', 
-            total_num, total_acc0, total_acc1)
+            'total number: {}, total acc0: {}, total acc1: {}, Accuracy: {:.3f}'.format(
+            total_num, total_acc0, total_acc1, accuracy))
     
-    return Accuracy.avg
+    writer.add_scalar('validate/loss', Losses.avg, epoch+1)
+    writer.add_scalar('validate/accuracy', accuracy, epoch+1)
+    
+    # return Accuracy.avg
+    return accuracy 
 
 
 def adjust_learning_rate(optimizer, epoch, args):
