@@ -30,7 +30,9 @@ class AverageMeter(object):
 
 
 
-def accuracy_binary(output, target, logger):
+def accuracy_binary(output, target, logger, id_num, id_dict={}, id_label = {}, mode='train'):
+    # if mode == 'val':
+    #     logger.info('output:%s', output)
     predict = F.softmax(output)
     predict = torch.argmax(predict, dim=1)
 
@@ -39,19 +41,49 @@ def accuracy_binary(output, target, logger):
     acc_0 = 0
     acc_1 = 0
     count = 0
+    # id_dict = {}
+    # id_label = {}
 
-    logger.info('predict:%s', predict)
-    logger.info('target :%s', target)
+    if mode == 'val':
+        logger.info('predict:%s', predict)
+        logger.info('target :%s', target)
 
-    for (a, b) in zip(predict, target):
-        a = a.cpu().numpy()
-        b = b.cpu().numpy()
-        if a == 0 and b == 0:
-            acc_0 += 1
-            count += 1
-        elif a == 1 and b == 1:
-            acc_1 += 1
-            count += 1
+        # if one case is predicted as positive, 
+        # the patient will be predicted as positive
+        for (a, b, c) in zip(predict, target, id_num):
+            a = a.cpu().numpy()
+            b = b.cpu().numpy()
+            if c not in id_dict:
+                id_dict[c] = 0
+                id_label[c] = b 
+            else:
+                id_dict[c] += a
+        
+        for key in id_dict:
+            if id_dict[key] > 0:
+                a = 1
+            else:
+                a = 0
+            b = id_label[key]
+            if a == 0 and b == 0:
+                acc_0 += 1
+                count += 1
+            elif a == 1 and b == 1:
+                acc_1 += 1
+                count += 1
 
-    return float(count), acc_0, acc_1
+        return id_dict, id_label
+
+    if mode == 'train':
+        for (a, b) in zip(predict, target):
+            a = a.cpu().numpy()
+            b = b.cpu().numpy()
+            if a == 0 and b == 0:
+                acc_0 += 1
+                count += 1
+            elif a == 1 and b == 1:
+                acc_1 += 1
+                count += 1
+
+        return float(count), acc_0, acc_1
     
