@@ -34,7 +34,7 @@ class Scale(object):
         if scale < 1.0:
             diff = (img_size - image.shape[0]) / 2.0
             padding = ((int(np.floor(diff)), int(np.ceil(diff))), ) * 2 + ((0, 0), )
-            image = np.pad(image, padding, mode='constant', constant_value=0)
+            image = np.pad(image, padding, mode='constant', constant_values=0)
         else:
             x_min = (image.shape[0] - img_size) // 2
             x_max = x_min + img_size
@@ -72,9 +72,9 @@ def pad_data(data):
         return data
     diff = (max(a, b) - min(a, b)) / 2.0
     if a > b:
-        padding = ((0, 0), (int(np.floor(diff)), int(np.ceil(diff))))
+        padding = ((0, 0), (int(np.floor(diff)), int(np.ceil(diff))), (0, 0))
     else:
-        padding = ((int(np.floor(diff)), int(np.ceil(diff))), (0, 0))
+        padding = ((int(np.floor(diff)), int(np.ceil(diff))), (0, 0), (0, 0))
     data = np.pad(data, padding, mode='constant', constant_values=0)
     return data
 
@@ -86,7 +86,8 @@ def resize_data(data, size):
         data, 
         output_shape=output_shape, 
         order=2, 
-        mode='constant',
+        # mode='constant',
+        mode='reflect',
         cval=0,
         anti_aliasing=False,
     )
