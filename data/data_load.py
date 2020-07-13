@@ -8,8 +8,8 @@ from torch.utils.data import Dataset, DataLoader, Sampler
 from .transform import pad_data, resize_data
 
 
-class SinglePhase(Dataset):
-    def __init__(self, root_path, image_size=224, transforms=None):
+class SinglePhase1(Dataset):
+    def __init__(self, root_path, image_size=2240, transforms=None):
         infos = []
         array_list = os.listdir(root_path)
         array_list.sort()
@@ -23,13 +23,14 @@ class SinglePhase(Dataset):
             
             # merge three arrays into one
             stack_array = np.array((array0, array1, array2))
+            stack_array = np.transpose(stack_array, [1, 2, 0])
 
             # pad the data to square and resize to image size
             stack_array = pad_data(stack_array)
             stack_array = resize_data(stack_array, image_size)
             
             # classify two kinds of data
-            array_name = array_list(i * 3)
+            array_name = array_list[i * 3]
             if array_name.endswith('0.npy'):
                 infos.append((stack_array, 0))
             elif array_name.endswith('1.npy'):
@@ -45,9 +46,56 @@ class SinglePhase(Dataset):
             array_data = self.transforms(array_data)
 
         # convert the data to c*h*w and change it to tensor
-        array_data = np.transpose((2, 0, 1))
+        array_data = np.transpose(array_data, [2, 0, 1])
         tensor_data = torch.from_numpy(array_data.astype(np.float32))
         return tensor_data, label 
+
+
+    def __len__(self):
+        return len(self.infos)
+
+
+
+class SinglePhase(Dataset):
+    def __init__(self, root_path, image_size=224, transforms=None):
+        infos = []
+        array_list = os.listdir(root_path)
+        array_list.sort()
+        
+        for i in range(len(array_list)):
+            
+            # load the npy file
+            array = np.load(os.path.join(root_path, array_list[i]))
+            
+            # merge three arrays into one
+            stack_array = np.array((array, array, array))
+            stack_array = np.transpose(stack_array, [1, 2, 0])
+
+            # pad the data to square and resize to image size
+            stack_array = pad_data(stack_array)
+            stack_array = resize_data(stack_array, image_size)
+            
+            # classify two kinds of data
+            array_name = array_list[i]
+            id_num = array_name.split('_')[0]
+            if array_name.endswith('0.npy'):
+                infos.append((stack_array, 0, id_num))
+            elif array_name.endswith('1.npy'):
+                infos.append((stack_array, 1, id_num))
+            
+        self.infos = infos 
+        self.transforms = transforms
+            
+
+    def __getitem__(self, index):
+        array_data, label, id_num = self.infos[index]
+        if self.transforms is not None:
+            array_data = self.transforms(array_data)
+
+        # convert the data to c*h*w and change it to tensor
+        array_data = np.transpose(array_data, [2, 0, 1])
+        tensor_data = torch.from_numpy(array_data.astype(np.float32))
+        return tensor_data, label, id_num
 
 
     def __len__(self):
