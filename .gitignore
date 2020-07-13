@@ -119,3 +119,4 @@ venv.bak/
 .logs/
 .checkpoint/
 .tensorboardimg/
+*.zip
