@@ -18,7 +18,7 @@ import torchvision.models as models
 from torch.utils.data import Dataset, DataLoader, Sampler
 from torch.utils.tensorboard import SummaryWriter
 
-from model import Resnet18, Resnet50, DilatedResnet, Attention, DenseNet, AlexNet, LeNet
+from model import Resnet18, Resnet50, DilatedResnet, Attention, DenseNet, AlexNet, LeNet, DRN22
 from data import SinglePhase, transforms
 from utils import AverageMeter, accuracy_binary
 
@@ -69,7 +69,7 @@ parser.add_argument('--angle', default=15, type=int,
 
 args = parser.parse_args()
 
-date = '0713'
+date = '0720'
 best_acc = 0
 
 
@@ -86,7 +86,7 @@ if not os.path.exists(logs):
 # use logging to record
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
-handler = logging.FileHandler(os.path.join(logs, 'resnet50_2240') + '.log', mode='w')
+handler = logging.FileHandler(os.path.join(logs, 'drn22_30') + '.log', mode='w')
 formatter = logging.Formatter('%(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -96,7 +96,7 @@ logger.addHandler(handler)
 writer = SummaryWriter('logs/runs')
 
 
-def save_ckpt(state, is_best, name='resnet50_2240'):
+def save_ckpt(state, is_best, name='drn22_30'):
     file_name = os.path.join(ckpts, name) + '.pth.tar'
     torch.save(state, file_name)
     if is_best:
@@ -111,12 +111,13 @@ def main():
 
     # creat model
     # model = Resnet18()
-    model = Resnet50()
+    # model = Resnet50()
     # model = DilatedResnet()
     # model = Attention()
     # model = DenseNet()
     # model = AlexNet()
     # model = LeNet()
+    model = DRN22()
     model = model.cuda(args.gpu)
     logger.info(model)
 

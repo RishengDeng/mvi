@@ -41,13 +41,13 @@ logger.info('the csv file has been loaded')
 
 
 # build a directory to save images
-image_dir = os.path.join(os.path.dirname(path), 'pv_images_30')
+image_dir = os.path.join(os.path.dirname(path), 'dl_images_30')
 if not os.path.exists(image_dir):
     os.mkdir(image_dir)
 
 
 # build a directory to save npy
-npy_dir = os.path.join(os.path.dirname(path), 'pv_npy_30')
+npy_dir = os.path.join(os.path.dirname(path), 'dl_npy_30')
 if not os.path.exists(npy_dir):
     os.mkdir(npy_dir)
 
@@ -69,7 +69,7 @@ for case_path in case_list:
     item_list.sort()
     for item in item_list:
         idx += 1
-        if item.split('_')[-1] == 'PV.nrrd':
+        if item.split('_')[-1] == 'DL.nrrd':
             break
     assert idx > 0
 
@@ -138,8 +138,8 @@ for case_path in case_list:
 
         # convert the new array to image and save it to file
         id_num = case_path.split('/')[-2]
-        image_name = id_num + '_' + str(i) + '_pv_' + mvi[id_num] + '.jpg'
-        npy_name = id_num + '_' + str(i) + '_pv_' + mvi[id_num] + '.npy'
+        image_name = id_num + '_' + str(i) + '_dl_' + mvi[id_num] + '.jpg'
+        npy_name = id_num + '_' + str(i) + '_dl_' + mvi[id_num] + '.npy'
         imageio.imwrite(os.path.join(image_dir, image_name), roi_array)
         # io.imsave(os.path.join(image_dir, image_name), roi_array)
         np.save(os.path.join(npy_dir, npy_name), roi_array)

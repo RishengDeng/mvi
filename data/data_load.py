@@ -9,7 +9,7 @@ from .transform import pad_data, resize_data
 
 
 class SinglePhase1(Dataset):
-    def __init__(self, root_path, image_size=2240, transforms=None):
+    def __init__(self, root_path, image_size=224, transforms=None):
         infos = []
         array_list = os.listdir(root_path)
         array_list.sort()

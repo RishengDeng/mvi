@@ -361,7 +361,15 @@ def drn_c_58(pretrained=False, **kwargs):
 def drn_d_22(pretrained=False, **kwargs):
     model = DRN(BasicBlock, [1, 1, 2, 2, 2, 2, 1, 1], arch='D', **kwargs)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['drn-d-22']))
+        # model.load_state_dict(model_zoo.load_url(model_urls['drn-d-54']))
+        pretrained_dict = model_zoo.load_url(model_urls['drn-d-22'])
+        model_dict = model.state_dict()
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if
+                           k in model_dict and k != "fc.weight" and k != "fc.bias"}
+        # update current model_dict
+        model_dict.update(pretrained_dict)
+        model.load_state_dict(model_dict)
+        # model.load_state_dict(model_zoo.load_url(model_urls['drn-d-22']))
     return model
 
 

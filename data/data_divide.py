@@ -3,7 +3,7 @@ import numpy as np
 import os 
 import xlrd 
 
-path = '/media/drs/extra/Datasets/mvi_data/pv_npy_30'
+path = '/media/drs/extra/Datasets/mvi_data/dl_npy_30'
 
 # build the directories to divide data
 # label0_path = os.path.join(path, 'label0')

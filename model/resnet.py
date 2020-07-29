@@ -3,7 +3,7 @@ import torchvision.models as models
 import torch.nn as nn 
 import torch.utils.model_zoo as model_zoo
 
-from .drn_origin import drn_d_54
+from .drn_origin import drn_d_54, drn_d_22
 from .drn_attention import drn_attention
 
 
@@ -76,6 +76,15 @@ class DilatedResnet(nn.Module):
     def forward(self, x):
         x = self.drn(x)
         return x 
+
+class DRN22(nn.Module):
+    def __init__(self):
+        super(DRN22, self).__init__()
+        self.drn22 = drn_d_22(pretrained=False, num_classes=2)
+
+    def forward(self, x):
+        x = self.drn22(x)
+        return x
 
 
 class Attention(nn.Module):
