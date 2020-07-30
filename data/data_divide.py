@@ -3,7 +3,7 @@ import numpy as np
 import os 
 import xlrd 
 
-path = '/media/drs/extra/Datasets/mvi_data/dl_npy_30'
+path = '/media/drs/extra/Datasets/mvi_data/art_npy'
 
 # build the directories to divide data
 # label0_path = os.path.join(path, 'label0')
@@ -55,14 +55,14 @@ for i in pathes:
 
 
 # devide the date through excel file
-excel_file = os.path.join(os.path.dirname(path), 'data_divide.xlsx')
+excel_file = os.path.join(os.path.dirname(path), 'dataset_divide.xlsx')
 wb = xlrd.open_workbook(filename=excel_file)
 sheet = wb.sheet_by_index(0)
 
 # get the train and val list
-train_col = sheet.col_values(5)
+train_col = sheet.col_values(13)
 train_id = train_col[1:]
-val_col = sheet.col_values(6)
+val_col = sheet.col_values(15)
 val_id = []
 for item in val_col:
     if isinstance(item, str):
