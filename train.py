@@ -6,6 +6,7 @@ import numpy as np
 import shutil
 import setproctitle
 from apex import amp 
+from sklearn.metrics import roc_auc_score
 
 import torch 
 import torch.nn as nn 
@@ -18,7 +19,7 @@ import torchvision.models as models
 from torch.utils.data import Dataset, DataLoader, Sampler
 from torch.utils.tensorboard import SummaryWriter
 
-from model import Resnet18, Resnet50, DilatedResnet, Attention, DenseNet, AlexNet, LeNet, DRN22
+from model import Resnet18, Resnet50, DilatedResnet, Attention, DenseNet, AlexNet, LeNet, DRN22, DRN22_test
 from data import SinglePhase, transforms
 from utils import AverageMeter, accuracy_binary
 
@@ -69,7 +70,7 @@ parser.add_argument('--angle', default=15, type=int,
 
 args = parser.parse_args()
 
-date = '0720'
+date = '0807'
 best_acc = 0
 
 
@@ -86,17 +87,17 @@ if not os.path.exists(logs):
 # use logging to record
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
-handler = logging.FileHandler(os.path.join(logs, 'drn22_30') + '.log', mode='w')
+handler = logging.FileHandler(os.path.join(logs, 'art_resnet18_bbox') + '.log', mode='w')
 formatter = logging.Formatter('%(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
 # show loss and accuracy in tensorboard
-writer = SummaryWriter('logs/runs')
+writer = SummaryWriter('logs/runs/art_resnet18_bbox')
 
 
-def save_ckpt(state, is_best, name='drn22_30'):
+def save_ckpt(state, is_best, name='art_resnet18_bbox'):
     file_name = os.path.join(ckpts, name) + '.pth.tar'
     torch.save(state, file_name)
     if is_best:
@@ -110,14 +111,15 @@ def main():
     print('Use GPU: {} for training'.format(args.gpu))
 
     # creat model
-    # model = Resnet18()
+    model = Resnet18()
     # model = Resnet50()
     # model = DilatedResnet()
     # model = Attention()
     # model = DenseNet()
     # model = AlexNet()
     # model = LeNet()
-    model = DRN22()
+    # model = DRN22()
+    # model = DRN22_test()
     model = model.cuda(args.gpu)
     logger.info(model)
 
@@ -229,7 +231,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         data = data.cuda(args.gpu, non_blocking=True)
         target = target.cuda(args.gpu, non_blocking=True)
 
-        output = model(data)
+        output, _ = model(data)
         loss = criterion(output, target)
 
         # measure the accuracy and record loss
@@ -262,8 +264,10 @@ def validate(val_loader, model, criterion, epoch, args):
     total_acc0 = 0
     total_acc1 = 0
     count = 0
-    id_dict = {}
+    # id_dict = {}
     id_label = {}
+    id_slice_sum = {}
+    id_slice_num = {}
 
     # switch to evaluate mode
     model.eval()
@@ -273,14 +277,17 @@ def validate(val_loader, model, criterion, epoch, args):
             data = data.cuda(args.gpu, non_blocking=True)
             target = target.cuda(args.gpu, non_blocking=True)
 
-            output = model(data)
+            output, _ = model(data)
             loss = criterion(output, target)
 
-            num = len(list(set(id_num)))
+            # num = len(list(set(id_num)))
 
             # measure the accuracy and record loss
             # acc, acc_0, acc_1 = accuracy_binary(output, target, logger, id_num, mode='val')
-            id_dict, id_label = accuracy_binary(output, target, logger, id_num, id_dict, id_label, mode='val')
+            # id_dict, id_label = accuracy_binary(output, target, logger, id_num, id_dict, id_label, mode='val')
+            id_label, id_slice_sum, id_slice_num = accuracy_binary(
+                output, target, logger, id_num, id_label, 
+                id_slice_sum, id_slice_num, mode='val')
             Losses.update(loss.item(), target.numel())
             # Accuracy.update(acc / num, num)
             # Accuracy.update(acc / target.numel(), target.numel())
@@ -294,31 +301,51 @@ def validate(val_loader, model, criterion, epoch, args):
             # total_acc0 += acc_0
             # total_acc1 += acc_1
 
-        for key in id_dict:
-            if id_dict[key] > 0:
-                a = 1
-            else:
-                a = 0
+        # for key in id_dict:
+        #     if id_dict[key] > 0:
+        #         a = 1
+        #     else:
+        #         a = 0
+        #     b = id_label[key]
+        #     if a == 0 and b == 0:
+        #         total_acc0 += 1
+        #         count += 1
+        #     elif a == 1 and b == 1:
+        #         total_acc1 += 1
+        #         count += 1
+        
+        y_true = []
+        y_score = []
+        
+        # use average probability to evaluate
+        for key in id_label:
+            avergae_prob = id_slice_sum[key] / id_slice_num[key]
+            y_true.append(id_label[key])
+            y_score.append(avergae_prob[1])
+            a = np.argmax(avergae_prob)
             b = id_label[key]
             if a == 0 and b == 0:
                 total_acc0 += 1
                 count += 1
             elif a == 1 and b == 1:
                 total_acc1 += 1
-                count += 1
+                count += 1 
 
+        # calculate accuracy and auc
         total_num = len(id_label)
         accuracy = count / total_num 
+        y_score = np.array(y_score)
+        y_true = np.array(y_true)
+        auc = roc_auc_score(y_true, y_score)
         
-        # logger.info(
-        #     'total number: {}, total acc0: {}, total acc1: {}, Accuracy: {:.3f}'.format(
-        #     total_num, total_acc0, total_acc1, Accuracy.avg))
         logger.info(
-            'total number: {}, total acc0: {}, total acc1: {}, Accuracy: {:.3f}'.format(
-            total_num, total_acc0, total_acc1, accuracy))
+            'total number: {}, total acc0: {}, total acc1: {}, Accuracy: {:.3f}, AUC: {}'.format(
+            total_num, total_acc0, total_acc1, accuracy, auc))
+        
     
     writer.add_scalar('validate/loss', Losses.avg, epoch+1)
     writer.add_scalar('validate/accuracy', accuracy, epoch+1)
+    writer.add_scalar('validate/auc', auc, epoch+1)
     
     # return Accuracy.avg
     return accuracy 

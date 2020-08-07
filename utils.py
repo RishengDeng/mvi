@@ -30,11 +30,14 @@ class AverageMeter(object):
 
 
 
-def accuracy_binary(output, target, logger, id_num, id_dict={}, id_label = {}, mode='train'):
+def accuracy_binary(output, target, logger, id_num, id_label={}, id_slice_sum={}, id_slice_num={}, mode='train'):
     # if mode == 'val':
     #     logger.info('output:%s', output)
-    predict = F.softmax(output)
-    predict = torch.argmax(predict, dim=1)
+    probability = F.softmax(output, dim=1)
+    predict = torch.argmax(probability, dim=1)
+    # if mode == 'val':
+    #     print('probablity', probability)
+    #     print('predict', predict) 
 
     batch_size = target.size(0)
 
@@ -50,29 +53,23 @@ def accuracy_binary(output, target, logger, id_num, id_dict={}, id_label = {}, m
 
         # if one case is predicted as positive, 
         # the patient will be predicted as positive
-        for (a, b, c) in zip(predict, target, id_num):
+        for (a, b, c) in zip(probability, target, id_num):
             a = a.cpu().numpy()
             b = b.cpu().numpy()
-            if c not in id_dict:
-                id_dict[c] = 0
-                id_label[c] = b 
+            # if c not in id_dict:
+            #     id_dict[c] = a 
+            #     id_label[c] = b 
+            # else:
+            #     id_dict[c] += a
+            if c not in id_slice_sum:
+                id_slice_num[c] = 1
+                id_slice_sum[c] = a 
+                id_label[c] = b
             else:
-                id_dict[c] += a
+                id_slice_num[c] += 1
+                id_slice_sum[c] += a 
         
-        for key in id_dict:
-            if id_dict[key] > 0:
-                a = 1
-            else:
-                a = 0
-            b = id_label[key]
-            if a == 0 and b == 0:
-                acc_0 += 1
-                count += 1
-            elif a == 1 and b == 1:
-                acc_1 += 1
-                count += 1
-
-        return id_dict, id_label
+        return id_label, id_slice_sum, id_slice_num
 
     if mode == 'train':
         for (a, b) in zip(predict, target):

@@ -5,6 +5,7 @@ import torch.utils.model_zoo as model_zoo
 
 from .drn_origin import drn_d_54, drn_d_22
 from .drn_attention import drn_attention
+from .drn22 import drn_d_22_test
 
 
 class Resnet18(nn.Module):
@@ -85,6 +86,17 @@ class DRN22(nn.Module):
     def forward(self, x):
         x = self.drn22(x)
         return x
+
+
+class DRN22_test(nn.Module):
+    def __init__(self):
+        super(DRN22_test, self).__init__()
+        self.drn22_test = drn_d_22_test(pretrained=False, num_classes=2, out_map=True)
+        
+    def forward(self, x):
+        x, x_vector = self.drn22_test(x)
+        # print(x_vector)
+        return x, x_vector 
 
 
 class Attention(nn.Module):

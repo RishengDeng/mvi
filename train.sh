@@ -1,7 +1,7 @@
 #!/bin/bash
 
 proxychains4 python train.py \
-/media/drs/extra/Datasets/mvi_data/dl_npy_30 \
+/media/drs/extra/Datasets/mvi_data/art_bbox_npy \
 --gpu 0 \
 --lr 0.0001 \
 --epochs 55 \

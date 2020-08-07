@@ -56,7 +56,7 @@ class SinglePhase1(Dataset):
 
 
 
-class SinglePhase(Dataset):
+class SinglePhase2(Dataset):
     def __init__(self, root_path, image_size=224, transforms=None):
         infos = []
         array_list = os.listdir(root_path)
@@ -102,3 +102,53 @@ class SinglePhase(Dataset):
         return len(self.infos)
 
 
+
+class SinglePhase(Dataset):
+    def __init__(self, root_path, image_size=224, transforms=None):
+        infos = []
+        array_list = os.listdir(root_path)
+        array_list.sort()
+        
+        for i in range(len(array_list)):
+            # make sure three slices belong to the same patient
+            if not (array_list[i].split('_')[0] == array_list[i + 1].split('_')[0] == array_list[i + 2].split('_')[0]):
+                continue
+
+            # load the npy file
+            array0 = np.load(os.path.join(root_path, array_list[i]))
+            array1 = np.load(os.path.join(root_path, array_list[i + 1]))
+            array2 = np.load(os.path.join(root_path, array_list[i + 2]))
+            
+            # merge three arrays into one
+            stack_array = np.array((array0, array1, array2))
+            stack_array = np.transpose(stack_array, [1, 2, 0])
+
+            # pad the data to square and resize to image size
+            stack_array = pad_data(stack_array)
+            stack_array = resize_data(stack_array, image_size)
+            
+            # classify two kinds of data
+            array_name = array_list[i]
+            id_num = array_name.split('_')[0]
+            if array_name.endswith('0.npy'):
+                infos.append((stack_array, 0, id_num))
+            elif array_name.endswith('1.npy'):
+                infos.append((stack_array, 1, id_num))
+        
+        self.infos = infos 
+        self.transforms = transforms
+            
+
+    def __getitem__(self, index):
+        array_data, label, id_num = self.infos[index]
+        if self.transforms is not None:
+            array_data = self.transforms(array_data)
+
+        # convert the data to c*h*w and change it to tensor
+        array_data = np.transpose(array_data, [2, 0, 1])
+        tensor_data = torch.from_numpy(array_data.astype(np.float32))
+        return tensor_data, label, id_num
+
+
+    def __len__(self):
+        return len(self.infos)
