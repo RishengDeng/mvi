@@ -19,7 +19,9 @@ import torchvision.models as models
 from torch.utils.data import Dataset, DataLoader, Sampler
 from torch.utils.tensorboard import SummaryWriter
 
-from model import Resnet18, Resnet50, DilatedResnet, Attention, DenseNet, AlexNet, LeNet, DRN22, DRN22_test
+from model import Resnet18, Resnet50, DilatedResnet, Attention, Res50Clinic, \
+    DenseNet, AlexNet, LeNet, DRN22, DRN22_test, ResClinic, DRN22Clinic, \
+        DRN54Clinic, AttentionClinic, ClinicRes18, ClinicDRN22, ClinicVgg11
 from data import SinglePhase, transforms
 from utils import AverageMeter, accuracy_binary
 
@@ -70,7 +72,7 @@ parser.add_argument('--angle', default=15, type=int,
 
 args = parser.parse_args()
 
-date = '0807'
+date = '0812'
 best_acc = 0
 
 
@@ -87,17 +89,17 @@ if not os.path.exists(logs):
 # use logging to record
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
-handler = logging.FileHandler(os.path.join(logs, 'art_resnet18_bbox') + '.log', mode='w')
+handler = logging.FileHandler(os.path.join(logs, 'art_clinicdrn22_bbox') + '.log', mode='w')
 formatter = logging.Formatter('%(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
 # show loss and accuracy in tensorboard
-writer = SummaryWriter('logs/runs/art_resnet18_bbox')
+writer = SummaryWriter('logs/runs/art_clinicdrn22_bbox')
 
 
-def save_ckpt(state, is_best, name='art_resnet18_bbox'):
+def save_ckpt(state, is_best, name='art_clinicdrn22_bbox'):
     file_name = os.path.join(ckpts, name) + '.pth.tar'
     torch.save(state, file_name)
     if is_best:
@@ -111,7 +113,7 @@ def main():
     print('Use GPU: {} for training'.format(args.gpu))
 
     # creat model
-    model = Resnet18()
+    # model = Resnet18()
     # model = Resnet50()
     # model = DilatedResnet()
     # model = Attention()
@@ -120,6 +122,14 @@ def main():
     # model = LeNet()
     # model = DRN22()
     # model = DRN22_test()
+    # model = ResClinic()
+    # model = DRN22Clinic()
+    # model = Res50Clinic()
+    # model = DRN54Clinic()
+    # model = AttentionClinic()
+    # model = ClinicRes18()
+    model = ClinicDRN22()
+    # model = ClinicVgg11()
     model = model.cuda(args.gpu)
     logger.info(model)
 
@@ -226,12 +236,13 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     # switch to train mode
     model.train()
 
-    for step, (data, target, id_num) in enumerate(train_loader):
+    for step, (data, target, id_num, clinic) in enumerate(train_loader):
         
         data = data.cuda(args.gpu, non_blocking=True)
         target = target.cuda(args.gpu, non_blocking=True)
+        clinic = clinic.cuda(args.gpu, non_blocking=True)
 
-        output, _ = model(data)
+        output= model(data, clinic)
         loss = criterion(output, target)
 
         # measure the accuracy and record loss
@@ -273,11 +284,12 @@ def validate(val_loader, model, criterion, epoch, args):
     model.eval()
 
     with torch.no_grad():
-        for step, (data, target, id_num) in enumerate(val_loader):
+        for step, (data, target, id_num, clinic) in enumerate(val_loader):
             data = data.cuda(args.gpu, non_blocking=True)
             target = target.cuda(args.gpu, non_blocking=True)
+            clinic = clinic.cuda(args.gpu, non_blocking=True)
 
-            output, _ = model(data)
+            output = model(data, clinic)
             loss = criterion(output, target)
 
             # num = len(list(set(id_num)))

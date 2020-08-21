@@ -5,7 +5,8 @@ import torch.utils.model_zoo as model_zoo
 
 from .drn_origin import drn_d_54, drn_d_22
 from .drn_attention import drn_attention
-from .drn22 import drn_d_22_test
+from .drn22 import drn_d_22_test, drn_22_clinic
+from .drn54 import drn_54_clinic, drn_attention_clinic
 
 
 class Resnet18(nn.Module):
@@ -25,6 +26,117 @@ class Resnet18(nn.Module):
         x = self.resnet18(x)
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        return x 
+
+
+class ResClinic(nn.Module):
+    def __init__(self, num_class=2):
+        super(ResClinic, self).__init__()
+        resnet18 = models.resnet18(pretrained=False)
+        modules = list(resnet18.children())[:-2]
+        fc_input = resnet18.fc.in_features
+        self.resnet18 = nn.Sequential(*modules)
+        self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
+        self.fc = nn.Linear(fc_input + 29, num_class)
+    
+    def forward(self, x, clinic):
+        x = self.resnet18(x)
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        x = torch.cat((x, clinic), dim=1)
+        x = self.fc(x)
+        return x 
+
+
+class ClinicRes18(nn.Module):
+    def __init__(self, num_class=2):
+        super(ClinicRes18, self).__init__()
+        resnet18 = models.resnet18(pretrained=False)
+        modules = list(resnet18.children())[1:-1]
+        fc_input = resnet18.fc.in_features
+        self.resnet18 = nn.Sequential(*modules)
+        self.fc = nn.Linear(fc_input, num_class)
+        self.conv0 = nn.Conv2d(4, 64, 7, stride=2, padding=3, bias=False)
+        self.fc0 = nn.Linear(29, 224 * 224)
+
+    def forward(self, x, clinic):
+        clinic = self.fc0(clinic)
+        clinic = clinic.view(clinic.size(0), 1, 224, 224)
+        x = torch.cat((x, clinic), dim = 1)
+        x = self.conv0(x)
+        x = self.resnet18(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        return x
+
+
+class ClinicVgg11(nn.Module):
+    def __init__(self, num_classes=2):
+        super(ClinicVgg11, self).__init__()
+        self.feature = nn.Sequential( 
+            nn.Conv2d(4, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)), 
+            nn.ReLU(inplace=True), 
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+            nn.Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)), 
+            nn.ReLU(inplace=True), 
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+            nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)), 
+            nn.ReLU(inplace=True), 
+            nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)), 
+            nn.ReLU(inplace=True), 
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+            nn.Conv2d(256, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)), 
+            nn.ReLU(inplace=True), 
+            nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)), 
+            nn.ReLU(inplace=True), 
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+            nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)), 
+            nn.ReLU(inplace=True), 
+            nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)), 
+            nn.ReLU(inplace=True), 
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d(output_size=(7, 7)) 
+        self.classifier = nn.Sequential(
+            nn.Linear(in_features=25088, out_features=4096, bias=True), 
+            nn.ReLU(inplace=True), 
+            nn.Dropout(p=0.5, inplace=False), 
+            nn.Linear(in_features=4096, out_features=4096, bias=True), 
+            nn.ReLU(inplace=True), 
+            nn.Dropout(p=0.5, inplace=False), 
+            nn.Linear(in_features=4096, out_features=2, bias=True)
+        )
+        self.conv0 = nn.Conv2d(4, 64, 3, padding=1)
+        self.fc0 = nn.Linear(29, 224 * 224)
+
+    def forward(self, x, clinic):
+        clinic = self.fc0(clinic)
+        clinic = clinic.view(clinic.size(0), 1, 224, 224)
+        x = torch.cat((x, clinic), dim = 1)
+        x = self.feature(x)
+        # print(x.shape)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
+        return x
+
+
+class Res50Clinic(nn.Module):
+    def __init__(self, num_class=2):
+        super(Res50Clinic, self).__init__()
+        resnet50 = models.resnet50(pretrained=True)
+        modules = list(resnet50.children())[:-2]
+        fc_input = resnet50.fc.in_features
+        self.resnet50 = nn.Sequential(*modules)
+        self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
+        self.fc = nn.Linear(fc_input + 29, num_class)
+    
+    def forward(self, x, clinic):
+        x = self.resnet50(x)
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        x = torch.cat((x, clinic), dim=1)
         x = self.fc(x)
         return x 
 
@@ -78,6 +190,15 @@ class DilatedResnet(nn.Module):
         x = self.drn(x)
         return x 
 
+class DRN54Clinic(nn.Module):
+    def __init__(self):
+        super(DRN54Clinic, self).__init__()
+        self.drn54_clinic = drn_54_clinic(pretrained=True, num_classes=2)
+    
+    def forward(self, x, clinic):
+        x = self.drn54_clinic(x, clinic)
+        return x 
+
 class DRN22(nn.Module):
     def __init__(self):
         super(DRN22, self).__init__()
@@ -87,6 +208,26 @@ class DRN22(nn.Module):
         x = self.drn22(x)
         return x
 
+
+
+class ClinicDRN22(nn.Module):
+    def __init__(self):
+        super(ClinicDRN22, self).__init__()
+        drn22 = drn_d_22(pretrained=False, num_classes=2)
+        modules = list(drn22.children())[1:]
+        self.drn22 = nn.Sequential(*modules)
+        self.conv0 = nn.Conv2d(4, 16, 7, stride=1, padding=3, bias=False)
+        self.fc0 = nn.Linear(29, 224 * 224)
+
+    def forward(self, x, clinic):
+        clinic = self.fc0(clinic)
+        clinic = clinic.view(clinic.size(0), 1, 224, 224)
+        x = torch.cat((x, clinic), dim=1)
+        x = self.conv0(x)
+        x = self.drn22(x)
+        x = x.view(x.size(0), -1)
+        # print(x.shape)
+        return x 
 
 class DRN22_test(nn.Module):
     def __init__(self):
@@ -99,6 +240,16 @@ class DRN22_test(nn.Module):
         return x, x_vector 
 
 
+class DRN22Clinic(nn.Module):
+    def __init__(self):
+        super(DRN22Clinic, self).__init__()
+        self.drn22_clinic = drn_22_clinic(num_classes=2)
+    
+    def forward(self, x, clinic):
+        x = self.drn22_clinic(x, clinic)
+        return x 
+
+
 class Attention(nn.Module):
     def __init__(self):
         super(Attention, self).__init__()
@@ -108,6 +259,15 @@ class Attention(nn.Module):
         x = self.attention(x)
         return x
 
+
+class AttentionClinic(nn.Module):
+    def __init__(self):
+        super(AttentionClinic, self).__init__()
+        self.drnattention_clinic = drn_attention_clinic(pretrained=True, attention=True, num_classes=2)
+
+    def forward(self, x, clinic):
+        x = self.drnattention_clinic(x, clinic)
+        return x 
 
 
 class AlexNet(nn.Module):
