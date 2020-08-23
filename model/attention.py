@@ -29,7 +29,7 @@ class PAM_Module(Module):
         proj_query = self.query_conv(x).view(m_batchsize, -1, width*height).permute(0, 2, 1)
         proj_key = self.key_conv(x).view(m_batchsize, -1, width*height)
         energy = torch.bmm(proj_query, proj_key)
-        attention = nn.Sigmoid(energy)
+        attention = torch.sigmoid(energy)
         proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
         out = torch.bmm(proj_value, attention.permute(0, 2, 1))
         out = out.view(m_batchsize, C, height, width)
@@ -57,7 +57,7 @@ class CAM_Module(Module):
         proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
         energy = torch.bmm(proj_query, proj_key)
         energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)-energy
-        attention = nn.Sigmoid(energy_new)
+        attention = torch.sigmoid(energy_new)
         proj_value = x.view(m_batchsize, C, -1)
         out = torch.bmm(attention, proj_value)
         out = out.view(m_batchsize, C, height, width)
