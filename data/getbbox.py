@@ -39,12 +39,12 @@ logger.info('Load the csv file')
 
 
 # build the directory to save image
-image_dir = os.path.join(os.path.dirname(path), 'art_bbox_image')
+image_dir = os.path.join(os.path.dirname(path), 'art_bbox_image_random')
 if not os.path.exists(image_dir):
     os.mkdir(image_dir)
 
 # build the directory to save npy
-npy_dir = os.path.join(os.path.dirname(path), 'art_bbox_npy')
+npy_dir = os.path.join(os.path.dirname(path), 'art_bbox_npy_random')
 if not os.path.exists(npy_dir):
     os.mkdir(npy_dir)
 
@@ -98,30 +98,33 @@ for case_path in case_list:
                 art_bbox_mask[i, j] = 1
 
     for i in art_mask_slice:
-        art_slice_array = art_array[:, :, i]
-        # get the mean and std of one slice
-        mean = art_slice_array.mean()
-        std = art_slice_array.std()
+        # art_slice_array = art_array[:, :, i]
+        # # get the mean and std of one slice
+        # mean = art_slice_array.mean()
+        # std = art_slice_array.std()
 
-        # get the lower and upper bound 
-        # mean+-3*std get 99.73% data
-        lower = np.percentile(art_slice_array, 0.14)
-        upper = np.percentile(art_slice_array, 99.86)
+        # # get the lower and upper bound 
+        # # mean+-3*std get 99.73% data
+        # lower = np.percentile(art_slice_array, 0.14)
+        # upper = np.percentile(art_slice_array, 99.86)
 
-        # truncate the array
-        art_slice_array[art_slice_array < lower] = lower 
-        art_slice_array[art_slice_array > upper] = upper 
+        # # truncate the array
+        # art_slice_array[art_slice_array < lower] = lower 
+        # art_slice_array[art_slice_array > upper] = upper 
 
-        # do normalization
-        art_slice_array = art_slice_array.astype(dtype=np.float32)
-        art_slice_array = (art_slice_array - mean) / std 
+        # # do normalization
+        # art_slice_array = art_slice_array.astype(dtype=np.float32)
+        # art_slice_array = (art_slice_array - mean) / std 
+
+        random_array = np.random.normal(2, 1, [art_mask_array.shape[0], art_mask_array.shape[1]])
 
         # multiply the bbox and art array
-        roi_array = np.multiply(art_slice_array, art_bbox_mask)        
+        # roi_array = np.multiply(art_slice_array, art_bbox_mask) 
+        roi_array = np.multiply(random_array, art_bbox_mask)       
 
         # conver the new array to image and save it to file
         id_num = case_path.split('/')[-2]
         image_name = id_num + '_' + str(i) + '_art_' + mvi[id_num] + '.jpg'
         npy_name = id_num + '_' + str(i) + '_art_' + mvi[id_num] + '.npy'
-        imageio.imwrite(os.path.join(image_dir, image_name), roi_array)
+        # imageio.imwrite(os.path.join(image_dir, image_name), roi_array)
         np.save(os.path.join(npy_dir, npy_name), roi_array)

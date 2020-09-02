@@ -49,6 +49,25 @@ class ResClinic(nn.Module):
         return x 
 
 
+class ResClinic2(nn.Module):
+    def __init__(self, num_class=2):
+        super(ResClinic2, self).__init__()
+        resnet18 = models.resnet18(pretrained=False)
+        modules = list(resnet18.children())[:-1]
+        fc_input = resnet18.fc.in_features
+        self.resnet18 = nn.Sequential(*modules)
+        self.fc0 = nn.Linear(fc_input, 29)
+        self.fc1 = nn.Linear(29 * 2, num_class)
+
+    def forward(self, x, clinic):
+        x = self.resnet18(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc0(x)
+        x = torch.cat((x, clinic), dim=1)
+        x = self.fc1(x)
+        return x
+
+
 class ClinicRes18(nn.Module):
     def __init__(self, num_class=2):
         super(ClinicRes18, self).__init__()
@@ -248,6 +267,24 @@ class DRN22Clinic(nn.Module):
     def forward(self, x, clinic):
         x = self.drn22_clinic(x, clinic)
         return x 
+
+
+class DRN22Clinic2(nn.Module):
+    def __init__(self):
+        super(DRN22Clinic2, self).__init__()
+        drn22_clinic = drn_22_clinic(num_classes=2)
+        modules = list(drn22_clinic.children())[:-1]
+        self.drn22_clinic2 = nn.Sequential(*modules)
+        self.fc0 = nn.Linear(512, 29)
+        self.fc1 = nn.Linear(29 * 2, 2)
+    
+    def forward(self, x, clinic):
+        x = self.drn22_clinic2(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc0(x)
+        x = torch.cat((x, clinic), dim=1)
+        x = self.fc1(x)
+        return x
 
 
 class Attention(nn.Module):

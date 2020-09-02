@@ -21,7 +21,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 from model import Resnet18, Resnet50, DilatedResnet, Attention, Res50Clinic, \
     DenseNet, AlexNet, LeNet, DRN22, DRN22_test, ResClinic, DRN22Clinic, \
-        DRN54Clinic, AttentionClinic, ClinicRes18, ClinicDRN22, ClinicVgg11
+        DRN54Clinic, AttentionClinic, ClinicRes18, ClinicDRN22, ClinicVgg11, \
+            ResClinic2, DRN22Clinic2
 from data import SinglePhase, transforms
 from utils import AverageMeter, accuracy_binary
 
@@ -72,7 +73,7 @@ parser.add_argument('--angle', default=15, type=int,
 
 args = parser.parse_args()
 
-date = '0812'
+date = '0824'
 best_acc = 0
 
 
@@ -89,17 +90,17 @@ if not os.path.exists(logs):
 # use logging to record
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
-handler = logging.FileHandler(os.path.join(logs, 'art_clinicdrn22_bbox') + '.log', mode='w')
+handler = logging.FileHandler(os.path.join(logs, 'art_drn22_random') + '.log', mode='w')
 formatter = logging.Formatter('%(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
 # show loss and accuracy in tensorboard
-writer = SummaryWriter('logs/runs/art_clinicdrn22_bbox')
+writer = SummaryWriter('logs/runs_1/art_drn22_random')
 
 
-def save_ckpt(state, is_best, name='art_clinicdrn22_bbox'):
+def save_ckpt(state, is_best, name='art_drn22_random'):
     file_name = os.path.join(ckpts, name) + '.pth.tar'
     torch.save(state, file_name)
     if is_best:
@@ -120,7 +121,7 @@ def main():
     # model = DenseNet()
     # model = AlexNet()
     # model = LeNet()
-    # model = DRN22()
+    model = DRN22()
     # model = DRN22_test()
     # model = ResClinic()
     # model = DRN22Clinic()
@@ -128,8 +129,10 @@ def main():
     # model = DRN54Clinic()
     # model = AttentionClinic()
     # model = ClinicRes18()
-    model = ClinicDRN22()
+    # model = ClinicDRN22()
     # model = ClinicVgg11()
+    # model = ResClinic2()
+    # model = DRN22Clinic2()
     model = model.cuda(args.gpu)
     logger.info(model)
 
@@ -236,13 +239,15 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     # switch to train mode
     model.train()
 
-    for step, (data, target, id_num, clinic) in enumerate(train_loader):
+    # for step, (data, target, id_num, clinic) in enumerate(train_loader):
+    for step, (data, target, id_num) in enumerate(train_loader):
         
         data = data.cuda(args.gpu, non_blocking=True)
         target = target.cuda(args.gpu, non_blocking=True)
-        clinic = clinic.cuda(args.gpu, non_blocking=True)
+        # clinic = clinic.cuda(args.gpu, non_blocking=True)
 
-        output= model(data, clinic)
+        # output= model(data, clinic)
+        output = model(data)
         loss = criterion(output, target)
 
         # measure the accuracy and record loss
@@ -284,12 +289,14 @@ def validate(val_loader, model, criterion, epoch, args):
     model.eval()
 
     with torch.no_grad():
-        for step, (data, target, id_num, clinic) in enumerate(val_loader):
+        # for step, (data, target, id_num, clinic) in enumerate(val_loader):
+        for step, (data, target, id_num) in enumerate(val_loader):
             data = data.cuda(args.gpu, non_blocking=True)
             target = target.cuda(args.gpu, non_blocking=True)
-            clinic = clinic.cuda(args.gpu, non_blocking=True)
+            # clinic = clinic.cuda(args.gpu, non_blocking=True)
 
-            output = model(data, clinic)
+            # output = model(data, clinic)
+            output = model(data)
             loss = criterion(output, target)
 
             # num = len(list(set(id_num)))
