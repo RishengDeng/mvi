@@ -12,7 +12,7 @@ from .drn54 import drn_54_clinic, drn_attention_clinic
 class Resnet18(nn.Module):
     def __init__(self, num_class=2):
         super(Resnet18, self).__init__()
-        resnet18 = models.resnet18(pretrained=False)
+        resnet18 = models.resnet18(pretrained=True)
         modules = list(resnet18.children())[:-2]
         fc_input = resnet18.fc.in_features
         self.resnet18 = nn.Sequential(*modules)
@@ -33,7 +33,7 @@ class Resnet18(nn.Module):
 class ResClinic(nn.Module):
     def __init__(self, num_class=2):
         super(ResClinic, self).__init__()
-        resnet18 = models.resnet18(pretrained=False)
+        resnet18 = models.resnet18(pretrained=True)
         modules = list(resnet18.children())[:-2]
         fc_input = resnet18.fc.in_features
         self.resnet18 = nn.Sequential(*modules)
@@ -52,7 +52,7 @@ class ResClinic(nn.Module):
 class ResClinic2(nn.Module):
     def __init__(self, num_class=2):
         super(ResClinic2, self).__init__()
-        resnet18 = models.resnet18(pretrained=False)
+        resnet18 = models.resnet18(pretrained=True)
         modules = list(resnet18.children())[:-1]
         fc_input = resnet18.fc.in_features
         self.resnet18 = nn.Sequential(*modules)
@@ -222,6 +222,7 @@ class DRN22(nn.Module):
     def __init__(self):
         super(DRN22, self).__init__()
         self.drn22 = drn_d_22(pretrained=False, num_classes=2)
+        # self.drn22 = drn_d_22(pretrained=True, num_classes=2)
 
     def forward(self, x):
         x = self.drn22(x)
@@ -262,7 +263,7 @@ class DRN22_test(nn.Module):
 class DRN22Clinic(nn.Module):
     def __init__(self):
         super(DRN22Clinic, self).__init__()
-        self.drn22_clinic = drn_22_clinic(num_classes=2)
+        self.drn22_clinic = drn_22_clinic(pretrained=True, num_classes=2)
     
     def forward(self, x, clinic):
         x = self.drn22_clinic(x, clinic)
@@ -272,7 +273,7 @@ class DRN22Clinic(nn.Module):
 class DRN22Clinic2(nn.Module):
     def __init__(self):
         super(DRN22Clinic2, self).__init__()
-        drn22_clinic = drn_22_clinic(num_classes=2)
+        drn22_clinic = drn_22_clinic(pretrained=True, num_classes=2)
         modules = list(drn22_clinic.children())[:-1]
         self.drn22_clinic2 = nn.Sequential(*modules)
         self.fc0 = nn.Linear(512, 29)

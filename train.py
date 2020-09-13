@@ -23,7 +23,7 @@ from model import Resnet18, Resnet50, DilatedResnet, Attention, Res50Clinic, \
     DenseNet, AlexNet, LeNet, DRN22, DRN22_test, ResClinic, DRN22Clinic, \
         DRN54Clinic, AttentionClinic, ClinicRes18, ClinicDRN22, ClinicVgg11, \
             ResClinic2, DRN22Clinic2
-from data import SinglePhase, transforms
+from data import transforms, SinglePhase, MultiPhase
 from utils import AverageMeter, accuracy_binary
 
 
@@ -73,7 +73,7 @@ parser.add_argument('--angle', default=15, type=int,
 
 args = parser.parse_args()
 
-date = '0824'
+date = '0909'
 best_acc = 0
 
 
@@ -90,17 +90,17 @@ if not os.path.exists(logs):
 # use logging to record
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
-handler = logging.FileHandler(os.path.join(logs, 'art_drn22_random') + '.log', mode='w')
+handler = logging.FileHandler(os.path.join(logs, 'multiphase_drn22') + '.log', mode='w')
 formatter = logging.Formatter('%(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
 # show loss and accuracy in tensorboard
-writer = SummaryWriter('logs/runs_1/art_drn22_random')
+writer = SummaryWriter('logs/runs_1/multiphase_drn22')
 
 
-def save_ckpt(state, is_best, name='art_drn22_random'):
+def save_ckpt(state, is_best, name='multiphase_drn22'):
     file_name = os.path.join(ckpts, name) + '.pth.tar'
     torch.save(state, file_name)
     if is_best:
@@ -178,7 +178,8 @@ def main():
     train_dir = os.path.join(args.data, 'train')
     val_dir = os.path.join(args.data, 'val')
 
-    train_dataset = SinglePhase(
+    # train_dataset = SinglePhase(
+    train_dataset = MultiPhase(
         train_dir, 
         image_size=224, 
         transforms=transforms(scale=args.scale, angle=args.angle, flip_prob=0.5)
@@ -192,7 +193,8 @@ def main():
         pin_memory=True
     )
 
-    val_dataset = SinglePhase(
+    # val_dataset = SinglePhase(
+    val_dataset = MultiPhase(
         val_dir, 
         image_size=224, 
         transforms=transforms(scale=args.scale, angle=args.angle, flip_prob=0.5)
