@@ -8,6 +8,7 @@ import csv
 import logging 
 import glob 
 import imageio 
+import xlrd 
 import nibabel as nib 
 from PIL import Image 
 from skimage import measure, io 
@@ -22,8 +23,8 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-path = '/home/drs/Desktop/mvi_data/MVI'
-# path = '/media/drs/extra/Datasets/mvi_data/MVI'
+# path = '/home/drs/Desktop/mvi_data/MVI'
+path = '/media/drs/extra/Datasets/mvi_data/MVI'
 
 
 # read mvi csv file
@@ -38,6 +39,11 @@ csv_file.close()
 
 logger.info('the csv file has been loaded')
 
+# load the changed label case
+changed_path = os.path.join(os.path.dirname(path), 'label_change.xlsx')
+wb = xlrd.open_workbook(filename=changed_path)
+sheet = wb.sheet_by_index(0)
+changed_case = sheet.col_values(6)
 
 # build a directory to save images
 image_dir = os.path.join(os.path.dirname(path), 'patch_image')
@@ -56,6 +62,10 @@ case_list = glob.glob(path + '/*/*')
 logger.info(case_list)
 for case_path in case_list:
     logger.info(case_path)
+
+    # ignore the mistake case
+    if eval(case_path.split('/')[-2]) in changed_case:
+        continue
 
     # get the art nrrd file
     idx = -1
