@@ -12,7 +12,7 @@ from .drn54 import drn_54_clinic, drn_attention_clinic
 class Resnet18(nn.Module):
     def __init__(self, num_class=2):
         super(Resnet18, self).__init__()
-        resnet18 = models.resnet18(pretrained=True)
+        resnet18 = models.resnet18(pretrained=False)
         modules = list(resnet18.children())[:-2]
         fc_input = resnet18.fc.in_features
         self.resnet18 = nn.Sequential(*modules)
@@ -221,7 +221,7 @@ class DRN54Clinic(nn.Module):
 class DRN22(nn.Module):
     def __init__(self):
         super(DRN22, self).__init__()
-        self.drn22 = drn_d_22(pretrained=False, num_classes=2)
+        self.drn22 = drn_d_22(pretrained=True, num_classes=2)
         # self.drn22 = drn_d_22(pretrained=True, num_classes=2)
 
     def forward(self, x):

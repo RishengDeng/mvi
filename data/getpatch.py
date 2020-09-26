@@ -115,7 +115,8 @@ for case_path in case_list:
     height = int((bbox[3] - bbox[1]) * 0.1)
     art_bbox_mask[(bbox[0] - length): (bbox[2] + length + 1), (bbox[1] - height): (bbox[3] + height + 1)] = 1
     
-    for i in art_mask_slice:
+    for i in [largest_slice]:
+
         art_slice_array = art_array[:, :, i]
         nc_slice_array = nc_array[:, :, i]
         pv_slice_array = pv_array[:, :, i]

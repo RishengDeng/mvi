@@ -3,7 +3,7 @@ import numpy as np
 import os 
 import xlrd 
 
-path = '/media/drs/extra/Datasets/mvi_data/3phase_npy'
+path = '/media/drs/extra/Datasets/mvi_data/patch_npy'
 
 # build the directories to divide data
 # label0_path = os.path.join(path, 'label0')
