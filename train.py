@@ -22,9 +22,10 @@ from torch.utils.tensorboard import SummaryWriter
 from model import Resnet18, Resnet50, DilatedResnet, Attention, Res50Clinic, \
     DenseNet, AlexNet, LeNet, DRN22, DRN22_test, ResClinic, DRN22Clinic, \
         DRN54Clinic, AttentionClinic, ClinicRes18, ClinicDRN22, ClinicVgg11, \
-            ResClinic2, DRN22Clinic2
-from data import transforms, SinglePhase, MultiPhase, PatchMultiPhase
-from utils import AverageMeter, accuracy_binary
+            ResClinic2, DRN22Clinic2, ResnetLSTM, ResnetLSTMClinic, ResnetLSTMClinic2, \
+                Drn22LSTM, Drn22LSTMClinic, Drn22LSTMClinic2
+from data import transforms, SinglePhase, MultiPhase, PatchMultiPhase, LSTM
+from utils import AverageMeter, accuracy_binary, stack3array
 
 
 
@@ -73,7 +74,7 @@ parser.add_argument('--angle', default=15, type=int,
 
 args = parser.parse_args()
 
-date = '0923'
+date = '1028'
 best_acc = 0
 
 
@@ -90,17 +91,17 @@ if not os.path.exists(logs):
 # use logging to record
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
-handler = logging.FileHandler(os.path.join(logs, 'patch_predrn22clinic2') + '.log', mode='w')
+handler = logging.FileHandler(os.path.join(logs, 'lstmpatchlstm') + '.log', mode='w')
 formatter = logging.Formatter('%(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
 # show loss and accuracy in tensorboard
-writer = SummaryWriter('logs/runs_1/patch_predrn22clinic2')
+writer = SummaryWriter('logs/runs_1/lstmpatchlstm')
 
 
-def save_ckpt(state, is_best, name='patch_predrn22clinic2'):
+def save_ckpt(state, is_best, name='lstmpatchlstm'):
     file_name = os.path.join(ckpts, name) + '.pth.tar'
     torch.save(state, file_name)
     if is_best:
@@ -132,7 +133,13 @@ def main():
     # model = ClinicDRN22()
     # model = ClinicVgg11()
     # model = ResClinic2()
-    model = DRN22Clinic2()
+    # model = DRN22Clinic2()
+    # model = ResnetLSTM()
+    # model = ResnetLSTMClinic()
+    # modle = ResnetLSTMClinic2()
+    model = Drn22LSTM()
+    # model = Drn22LSTMClinic()
+    # model = Drn22LSTMClinic2()
     model = model.cuda(args.gpu)
     logger.info(model)
 
@@ -179,7 +186,8 @@ def main():
     val_dir = os.path.join(args.data, 'val')
 
     # train_dataset = SinglePhase(
-    train_dataset = PatchMultiPhase(
+    # train_dataset = PatchMultiPhase(
+    train_dataset = LSTM(
         train_dir, 
         image_size=224, 
         transforms=transforms(scale=args.scale, angle=args.angle, flip_prob=0.5)
@@ -194,7 +202,8 @@ def main():
     )
 
     # val_dataset = SinglePhase(
-    val_dataset = PatchMultiPhase(
+    # val_dataset = PatchMultiPhase(
+    val_dataset = LSTM(
         val_dir, 
         image_size=224, 
         transforms=transforms(scale=args.scale, angle=args.angle, flip_prob=0.5)
@@ -241,14 +250,24 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     # switch to train mode
     model.train()
 
-    for step, (data, target, id_num, clinic) in enumerate(train_loader):
+    # for step, (data, target, id_num, clinic) in enumerate(train_loader):
     # for step, (data, target, id_num) in enumerate(train_loader):
+    for step, (global_data, local_data, target, id_num) in enumerate(train_loader):
         
-        data = data.cuda(args.gpu, non_blocking=True)
+        global_data = global_data.cuda(args.gpu, non_blocking=True)
+        local_data = local_data.cuda(args.gpu, non_blocking=True)
         target = target.cuda(args.gpu, non_blocking=True)
-        clinic = clinic.cuda(args.gpu, non_blocking=True)
+        # clinic = clinic.cuda(args.gpu, non_blocking=True)
 
-        output= model(data, clinic)
+        art_global = stack3array(global_data[:, 0:1, :, :])
+        art_local = stack3array(local_data[:, 0:1, :, :])
+        nc_global = stack3array(global_data[:, 1:2, :, :])
+        nc_local = stack3array(local_data[:, 1:2, :, :])
+        pv_global = stack3array(global_data[:, 2:3, :, :])
+        pv_local = stack3array(local_data[:, 2:3, :, :])
+
+        output = model(nc_global, nc_local, art_global, art_local, pv_global, pv_local)
+        # output= model(data, clinic)
         # output = model(data)
         loss = criterion(output, target)
 
@@ -291,13 +310,25 @@ def validate(val_loader, model, criterion, epoch, args):
     model.eval()
 
     with torch.no_grad():
-        for step, (data, target, id_num, clinic) in enumerate(val_loader):
+        # for step, (data, target, id_num, clinic) in enumerate(val_loader):
         # for step, (data, target, id_num) in enumerate(val_loader):
-            data = data.cuda(args.gpu, non_blocking=True)
+        for step, (global_data, local_data, target, id_num) in enumerate(val_loader):
+        
+            global_data = global_data.cuda(args.gpu, non_blocking=True)
+            local_data = local_data.cuda(args.gpu, non_blocking=True)
+            # data = data.cuda(args.gpu, non_blocking=True)
             target = target.cuda(args.gpu, non_blocking=True)
-            clinic = clinic.cuda(args.gpu, non_blocking=True)
+            # clinic = clinic.cuda(args.gpu, non_blocking=True)
+            
+            art_global = stack3array(global_data[:, 0:1, :, :])
+            art_local = stack3array(local_data[:, 0:1, :, :])
+            nc_global = stack3array(global_data[:, 1:2, :, :])
+            nc_local = stack3array(local_data[:, 1:2, :, :])
+            pv_global = stack3array(global_data[:, 2:3, :, :])
+            pv_local = stack3array(local_data[:, 2:3, :, :])
 
-            output = model(data, clinic)
+            output = model(nc_global, nc_local, art_global, art_local, pv_global, pv_local)
+            # output = model(data, clinic)
             # output = model(data)
             loss = criterion(output, target)
 

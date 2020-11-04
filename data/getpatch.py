@@ -110,6 +110,7 @@ for case_path in case_list:
             # get the bounding box
             bbox = prop[0].bbox
     
+    # expand the bounding box by 20%
     art_bbox_mask = np.zeros((art_mask_array.shape[0], art_mask_array.shape[1]))
     length = int((bbox[2] - bbox[0]) * 0.1)
     height = int((bbox[3] - bbox[1]) * 0.1)

@@ -84,3 +84,9 @@ def accuracy_binary(output, target, logger, id_num, id_label={}, id_slice_sum={}
 
         return float(count), acc_0, acc_1
     
+
+def stack3array(array):
+        stack_array = torch.cat((array, array, array), dim=1)
+        # print(array.shape, stack_array.shape)
+        stack_array = stack_array.reshape(array.size(0), 3, array.size(2), array.size(3))
+        return stack_array
