@@ -19,8 +19,8 @@ path = '/media/drs/extra/Datasets/mvi_new'
 # set logging information 
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
-handler = logging.StreamHandler()
-# handler = logging.FileHandler(os.path.join(pwd, 'errors') + '.log', mode='w')
+# handler = logging.StreamHandler()
+handler = logging.FileHandler(os.path.join(pwd, 'dl_errors') + '.log', mode='w')
 formatter = logging.Formatter('%(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -38,13 +38,13 @@ for case_path in case_list:
     item_list = sorted(os.listdir(case_path))
     for item in item_list:
         idx += 1
-        if item.split('_')[-1] == 'ART.nrrd':
+        if item.split('_')[-2] + '_' + item.split('_')[-1]== 'ART_tumormask.nrrd':
             art_mask_slice = idx
-        elif item.split('_')[-1] == 'NC.nrrd':
+        elif item.split('_')[-2] + '_' + item.split('_')[-1]== 'NC_tumormask.nrrd':
             nc_mask_slice = idx 
-        elif item.split('_')[-1] == 'PV.nrrd':
+        elif item.split('_')[-2] + '_' + item.split('_')[-1]== 'PV_tumormask.nrrd':
             pv_mask_slice = idx 
-        elif item.split('_')[-1] == 'DL.nrrd':
+        elif item.split('_')[-2] + '_' + item.split('_')[-1]== 'DL_tumormask.nrrd':
             dl_mask_slice = idx 
 
     # get three phase image and mask path
@@ -58,7 +58,7 @@ for case_path in case_list:
     dl_mask_path = case_path + '/' + item_list[dl_mask_slice]
 
     # get art mask array
-    art_mask_array, _ = nrrd.read(art_mask_path)
+    art_mask_array, _ = nrrd.read(dl_mask_path)
     art_mask_slice = list(set(np.nonzero(art_mask_array)[-1]))
 
     # use the maximum connectivity method to find the largest slice
@@ -77,4 +77,5 @@ for case_path in case_list:
     for i in [largest_slice-2, largest_slice-1, largest_slice, largest_slice+1, largest_slice+2]:
         # omit the mask with no data
         if np.sum(art_mask_array[:, :, i]) == 0:
-            logger.info(case_path)
+            logger.info(case_path + 'dl')
+            break 
