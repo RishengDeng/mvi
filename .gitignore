@@ -120,3 +120,4 @@ logs/
 checkpoint/
 tensorboardimg/
 *.zip
+testlogs/
