@@ -121,3 +121,5 @@ checkpoint/
 tensorboardimg/
 *.zip
 testlogs/
+ckpts/
+heatmap/
