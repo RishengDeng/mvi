@@ -2,7 +2,7 @@ import os
 import shutil
 import numpy as np 
 
-path = '/media/drs/extra/Datasets/MVI/val/'
+path = '/media/drs/extra/Datasets/MVI/bbox_npy/'
 
 phase_path = []
 

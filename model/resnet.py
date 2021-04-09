@@ -30,15 +30,37 @@ class Resnet18(nn.Module):
         return x 
 
 
-class ResClinic(nn.Module):
+class ResRadio(nn.Module):
     def __init__(self, num_class=2):
-        super(ResClinic, self).__init__()
-        resnet18 = models.resnet18(pretrained=True)
+        super(ResRadio, self).__init__()
+        resnet18 = models.resnet18(pretrained=False)
         modules = list(resnet18.children())[:-2]
         fc_input = resnet18.fc.in_features
         self.resnet18 = nn.Sequential(*modules)
         self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
-        self.fc = nn.Linear(fc_input + 29, num_class)
+        self.fc1 = nn.Linear(fc_input,100)
+        self.fc2 = nn.Linear(1080, 100)
+        self.fc3 = nn.Linear(200, num_class)
+    
+    def forward(self, x, clinic):
+        x = self.resnet18(x)
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc1(x)
+        clinic = self.fc2(clinic)
+        x = torch.cat((x, clinic), dim=1)
+        x = self.fc3(x)
+        return x 
+
+class ResClinic(nn.Module):
+    def __init__(self, num_class=2):
+        super(ResClinic, self).__init__()
+        resnet18 = models.resnet18(pretrained=False)
+        modules = list(resnet18.children())[:-2]
+        fc_input = resnet18.fc.in_features
+        self.resnet18 = nn.Sequential(*modules)
+        self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
+        self.fc = nn.Linear(fc_input + 1080, num_class)
     
     def forward(self, x, clinic):
         x = self.resnet18(x)

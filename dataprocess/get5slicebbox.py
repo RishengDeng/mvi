@@ -5,6 +5,7 @@ import cv2
 import shutil 
 import glob 
 import csv 
+import xlrd
 import logging 
 import imageio 
 import scipy 
@@ -37,6 +38,17 @@ def readCSV(csv_path):
     print('mvi label has been loaded\n')
     return mvi 
 
+
+def readxls(xls_path, sheet_id, id_col, label_col):
+    mvi = {}
+    wb = xlrd.open_workbook(filename=xls_path)
+    sheet = wb.sheet_by_index(sheet_id)
+    id = sheet.col_values(id_col)
+    label = sheet.col_values(label_col)
+    for i in range(1, len(id)):
+        mvi[id[i]] = label[i]
+    print('mvi label has been loaded\n')
+    return mvi 
 
 
 def bddir(path):
@@ -162,8 +174,8 @@ def saveImg(image_array, mask_array, mask_list, test_num, image_dir, npy_dir, ph
         bbox_array = bbox_array.reshape(bbox_shape0, bbox_shape1)
         bbox_array = cv2.resize(bbox_array, (224, 224))
         
-        image_name = test_num + '_' + str(i) + phase + mvi[test_num] + '.jpg'
-        npy_name = test_num + '_' + str(i) + phase + mvi[test_num] + '.npy'
+        image_name = test_num + '_' + str(i) + phase + str(int(mvi[test_num])) + '.jpg'
+        npy_name = test_num + '_' + str(i) + phase + str(int(mvi[test_num])) + '.npy'
 
         imageio.imwrite(os.path.join(image_dir, image_name), bbox_array)
         np.save(os.path.join(npy_dir, npy_name), bbox_array)
@@ -179,13 +191,16 @@ if __name__ == "__main__":
     setLog(pwd)
 
     csv_path = os.path.join(path, 'label.csv')
-    mvi = readCSV(csv_path)
+    xls_path = os.path.join(path, 'Clinical_binary_2.xlsx')
+    # mvi = readCSV(csv_path)
+    mvi = readxls(xls_path, 4, 0, 1)
 
     image_dir, npy_dir = bddir(path)
 
-    data_path = os.path.join(path, 'MVI_1202')
+    data_path = os.path.join(path, 'EV3')
     # data_path = os.path.join(path, 'mvi_IV')
-    case_list = glob.glob(data_path + '/*/*')
+    # case_list = glob.glob(data_path + '/*/*')
+    case_list = glob.glob(data_path + '/*')
 
     for case_path in case_list:
         print(case_path)
@@ -212,7 +227,8 @@ if __name__ == "__main__":
         pv_image_array, pv_mask_array, pv_mask_list = getImgMask(case_path, item_list, pv_mask_slice)
         dl_image_array, dl_mask_array, dl_mask_list = getImgMask(case_path, item_list, dl_mask_slice)
 
-        test_num = case_path.split('/')[-2]
+        # test_num = case_path.split('/')[-2]
+        test_num = case_path.split('/')[-1]
 
         saveImg(art_image_array, art_mask_array, art_mask_list, test_num, image_dir, npy_dir, '_art_')
         saveImg(nc_image_array, nc_mask_array, nc_mask_list, test_num, image_dir, npy_dir, '_nc_')

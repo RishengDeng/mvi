@@ -84,9 +84,68 @@ def accuracy_binary(output, target, logger, id_num, id_label={}, id_slice_sum={}
 
         return float(count), acc_0, acc_1
     
+    
+    
+    
+def accuracy_valid(output, target, logger, mode='train'):
+    # if mode == 'val':
+    #     logger.info('output:%s', output)
+    probability = F.softmax(output, dim=1)
+    predict = torch.argmax(probability, dim=1)
+    if mode == 'val':
+        logger.info('predict:%s', predict)
+        logger.info('target :%s', target) 
 
+    acc_0 = 0
+    acc_1 = 0
+    count = 0
+
+    for (a, b) in zip(predict, target):
+        a = a.cpu().numpy()
+        b = b.cpu().numpy()
+        if a == 0 and b == 0:
+            acc_0 += 1
+            count += 1
+        elif a == 1 and b == 1:
+            acc_1 += 1
+            count += 1
+
+    return float(count), acc_0, acc_1
+    
+
+
+def accuracy_allslice(output, target, logger, id_num, id_label={}, id_slice_sum={}, id_slice_num={}):
+
+    probability = F.softmax(output, dim=1)
+    predict = torch.argmax(probability, dim=1)
+
+    logger.info('predict:%s', predict)
+    logger.info('target :%s', target)
+
+    # if one case is predicted as positive, 
+    # the patient will be predicted as positive
+    for (a, b, c) in zip(probability, target, id_num):
+        a = a.cpu().numpy()
+        b = b.cpu().numpy()
+        
+        if c not in id_slice_sum:
+            id_slice_num[c] = 1
+            temp = []
+            temp.append(a)
+            id_slice_sum[c] = temp 
+            id_label[c] = b
+        else:
+            id_slice_num[c] += 1
+            temp = id_slice_sum[c]
+            temp.append(a)
+            id_slice_sum[c] = temp 
+    
+    return id_label, id_slice_sum, id_slice_num
+    
+
+    
 def stack3array(array):
-        stack_array = torch.cat((array, array, array), dim=1)
-        # print(array.shape, stack_array.shape)
-        stack_array = stack_array.reshape(array.size(0), 3, array.size(2), array.size(3))
-        return stack_array
+    stack_array = torch.cat((array, array, array), dim=1)
+    # print(array.shape, stack_array.shape)
+    stack_array = stack_array.reshape(array.size(0), 3, array.size(2), array.size(3))
+    return stack_array

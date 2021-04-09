@@ -1,8 +1,8 @@
 #!/bin/bash
 
 python test.py \
-/media/drs/extra/Datasets/mvi_data/art_npy \
+/media/drs/extra/Datasets/MVI/EV1_process/ \
 --gpu 0 \
 --lr 0.0001 \
 -b 1 \
---resume '/media/drs/extra/Learn/code/mvi/ckpts/0806/dl_drn22_testbest.pth.tar' \
+--resume '/media/drs/extra/Learn/code/mvi/ckpts/0220/' \
